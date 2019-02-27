@@ -33,7 +33,7 @@ from sapl.parlamentares.apps import AppConfig
 from sapl.utils import (parlamentares_ativos, show_results_filter_set)
 
 from .forms import (FiliacaoForm, FrenteForm, LegislaturaForm, MandatoForm,
-                    ParlamentarCreateForm, ParlamentarForm, VotanteForm, ParlamentarFilterSet)
+                    ParlamentarCreateForm, ParlamentarForm, VotanteForm, ParlamentarFilterSet, VincularParlamentarForm)
 from .models import (CargoMesa, Coligacao, ComposicaoColigacao, ComposicaoMesa,
                      Dependente, Filiacao, Frente, Legislatura, Mandato,
                      NivelInstrucao, Parlamentar, Partido, SessaoLegislativa,
@@ -207,7 +207,7 @@ class PesquisarParlamentarView(FilterView):
         data = self.filterset.data
         url = ''
         if data:
-            url = "&" + str(self.request.environ['QUERY_STRING'])
+            url = "&" + str(self.request.META['QUERY_STRING'])
             if url.startswith("&page"):
                 ponto_comeco = url.find('nome_parlamentar=') - 1
                 url = url[ponto_comeco:]
@@ -1138,3 +1138,24 @@ def altera_field_mesa_public_view(request):
          'lista_fotos': lista_fotos,
          'sessao_selecionada': sessao_selecionada,
          'msg': ('', 1)})
+
+
+class VincularParlamentarView(FormView):
+    logger = logging.getLogger(__name__)
+    form_class = VincularParlamentarForm
+    template_name = 'parlamentares/vincular_parlamentar.html'
+
+    def form_valid(self, form):
+        kwargs = {
+            'parlamentar': form.cleaned_data['parlamentar'],
+            'legislatura': form.cleaned_data['legislatura'],
+            'data_inicio_mandato': form.cleaned_data['legislatura'].data_inicio
+        }
+
+        if form.cleaned_data['data_expedicao_diploma']:
+            kwargs.update({'data_expedicao_diploma': form.cleaned_data['data_expedicao_diploma']})
+
+        mandato = Mandato.objects.create(**kwargs)
+        mandato.save()
+
+        return HttpResponseRedirect(reverse('sapl.parlamentares:parlamentar_list'))
